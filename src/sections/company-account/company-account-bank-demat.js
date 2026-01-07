@@ -14,8 +14,11 @@ import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 
 // components / utils (adjust paths if necessary)
-import FormProvider, { RHFTextField, RHFSelect } from 'src/components/hook-form';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
+import FormProvider, {
+  RHFTextField,
+  RHFSelect,
+  RHFCustomFileUploadBox,
+} from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
 import axiosInstance from 'src/utils/axios';
@@ -112,32 +115,6 @@ export default function BankDematNewForm({ onClose }) {
   const documentType = useWatch({ control, name: 'documentType' });
 
   // -------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------
-  const handleDrop = (acceptedFiles) => {
-    const file = acceptedFiles?.[0];
-    if (!file) return;
-
-    setValue('addressProof', file, { shouldValidate: true });
-
-    // preview if image
-    if (file.type?.startsWith?.('image/')) {
-      const reader = new FileReader();
-      reader.onload = () => setPreview(reader.result);
-      reader.readAsDataURL(file);
-    } else {
-      setPreview(null);
-    }
-
-    extractBankDetails(file);
-  };
-
-  const handleRemove = () => {
-    setValue('addressProof', null, { shouldValidate: true });
-    setPreview(null);
-  };
-
-  // -------------------------------------------------------
   // Extract bank details from uploaded document
   // (calls your backend: /bank-details/extract/)
   // -------------------------------------------------------
@@ -148,13 +125,9 @@ export default function BankDematNewForm({ onClose }) {
       // backend expected key may be 'file' or 'document' — use 'file' as in original
       formData.append('file', file);
 
-      const res = await axiosInstance.post(
-        `/api/kyc/issuer_kyc/bank-details/extract/`,
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        }
-      );
+      const res = await axiosInstance.post(`/api/kyc/issuer_kyc/bank-details/extract/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       const extracted = res?.data?.data?.extracted_data?.data ?? null;
 
@@ -194,20 +167,16 @@ export default function BankDematNewForm({ onClose }) {
         ifsc_code: data.ifscCode,
       };
 
-      const res = await axiosInstance.post(
-        `/api/kyc/issuer_kyc/bank-details/verify/`,
-        payload,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+      const res = await axiosInstance.post(`/api/kyc/issuer_kyc/bank-details/verify/`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
 
       enqueueSnackbar(res?.data?.message || 'Bank details verified', { variant: 'success' });
 
       // optionally submit bank details after verification
-      await axiosInstance.post(
-        `/api/kyc/issuer_kyc/bank-details/submit/`,
-        payload,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+      await axiosInstance.post(`/api/kyc/issuer_kyc/bank-details/submit/`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
 
       enqueueSnackbar('Bank details submitted successfully', { variant: 'success' });
 
@@ -240,9 +209,13 @@ export default function BankDematNewForm({ onClose }) {
       };
 
       // Post demat
-      const dematRes = await axiosInstance.post(`/api/kyc/issuer_kyc/company/demat/`, dematPayload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const dematRes = await axiosInstance.post(
+        `/api/kyc/issuer_kyc/company/demat/`,
+        dematPayload,
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
 
       enqueueSnackbar(dematRes?.data?.message || 'Demat details submitted', { variant: 'success' });
 
@@ -276,8 +249,8 @@ export default function BankDematNewForm({ onClose }) {
             Bank & Demat Details
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Upload passbook/cheque/bank statement to auto-fill bank details. Verify IFSC to
-            proceed to Demat details.
+            Upload passbook/cheque/bank statement to auto-fill bank details. Verify IFSC to proceed
+            to Demat details.
           </Typography>
         </Stack>
 
@@ -297,16 +270,19 @@ export default function BankDematNewForm({ onClose }) {
             </RHFSelect>
           </Box>
 
-          <RHFFileUploadBox
+          <RHFCustomFileUploadBox
             name="addressProof"
             label={`Upload ${
               (documentType === 'passbook' && 'Passbook') ||
               (documentType === 'cheque' && 'Cheque') ||
               (documentType === 'bank_statement' && 'Bank Statement')
             }`}
-            acceptedTypes="pdf,jpeg,jpg,png"
-            maxSizeMB={10}
-            onDrop={(acceptedFiles) => handleDrop(acceptedFiles)}
+            icon="mdi:file-document-outline"
+            accept={{
+              'application/pdf': ['.pdf'],
+              'application/msword': ['.doc'],
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            }}
           />
         </Stack>
 
@@ -376,51 +352,51 @@ export default function BankDematNewForm({ onClose }) {
         </Box>
 
         {/* Demat fields - shown after verify */}
-          <Paper
-            variant="outlined"
-            sx={{
-              mt: 3,
-              p: 3,
-              borderRadius: 1,
-              borderColor: 'divider',
-            }}
-          >
-            <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-              Demat Account Details
-            </Typography>
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 3,
+            p: 3,
+            borderRadius: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+            Demat Account Details
+          </Typography>
 
-            <Grid container spacing={3}>
-              <Grid xs={12} md={6}>
-                <Typography sx={{ mb: 1, fontWeight: 600 }}>DP ID</Typography>
-                <RHFTextField name="dpId" placeholder="Enter DP ID (8 Digits)" />
-              </Grid>
-
-              <Grid xs={12} md={6}>
-                <Typography sx={{ mb: 1, fontWeight: 600 }}>DP Name</Typography>
-                <RHFTextField name="dpName" placeholder="DP / Broker Name" />
-              </Grid>
-
-              <Grid xs={12} md={6}>
-                <Typography sx={{ mb: 1, fontWeight: 600 }}>Client ID / BO ID</Typography>
-                <RHFTextField name="beneficiaryClientId" placeholder="Enter Client ID / BO ID" />
-              </Grid>
-
-              <Grid xs={12} md={6}>
-                <Typography sx={{ mb: 1, fontWeight: 600 }}>Demat Account Number</Typography>
-                <RHFTextField name="dematAccountNumber" placeholder="Enter Demat Account Number" />
-              </Grid>
-
-              <Grid xs={12} md={6}>
-                <Typography sx={{ mb: 1, fontWeight: 600 }}>Depository</Typography>
-                <RHFSelect name="depository" placeholder="Select Depository">
-                  <MenuItem value="CDSL">CDSL</MenuItem>
-                  <MenuItem value="NSDL">NSDL</MenuItem>
-                </RHFSelect>
-              </Grid>
+          <Grid container spacing={3}>
+            <Grid xs={12} md={6}>
+              <Typography sx={{ mb: 1, fontWeight: 600 }}>DP ID</Typography>
+              <RHFTextField name="dpId" placeholder="Enter DP ID (8 Digits)" />
             </Grid>
-          </Paper>
+
+            <Grid xs={12} md={6}>
+              <Typography sx={{ mb: 1, fontWeight: 600 }}>DP Name</Typography>
+              <RHFTextField name="dpName" placeholder="DP / Broker Name" />
+            </Grid>
+
+            <Grid xs={12} md={6}>
+              <Typography sx={{ mb: 1, fontWeight: 600 }}>Client ID / BO ID</Typography>
+              <RHFTextField name="beneficiaryClientId" placeholder="Enter Client ID / BO ID" />
+            </Grid>
+
+            <Grid xs={12} md={6}>
+              <Typography sx={{ mb: 1, fontWeight: 600 }}>Demat Account Number</Typography>
+              <RHFTextField name="dematAccountNumber" placeholder="Enter Demat Account Number" />
+            </Grid>
+
+            <Grid xs={12} md={6}>
+              <Typography sx={{ mb: 1, fontWeight: 600 }}>Depository</Typography>
+              <RHFSelect name="depository" placeholder="Select Depository">
+                <MenuItem value="CDSL">CDSL</MenuItem>
+                <MenuItem value="NSDL">NSDL</MenuItem>
+              </RHFSelect>
+            </Grid>
+          </Grid>
+        </Paper>
         {/* Submit / buttons */}
-        <Box sx={{ display: 'flex', justifyContent: 'end' ,gap: 2 , mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'end', gap: 2, mt: 4 }}>
           <Button variant="outlined" onClick={onClose}>
             Cancel
           </Button>

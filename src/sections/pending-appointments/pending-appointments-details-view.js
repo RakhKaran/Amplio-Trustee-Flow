@@ -16,7 +16,6 @@ import { useForm, useWatch } from 'react-hook-form';
 
 import * as Yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import { useRouter } from 'src/routes/hook';
 import { enqueueSnackbar } from 'notistack';
 import axiosInstance from 'src/utils/axios';

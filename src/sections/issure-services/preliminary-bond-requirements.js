@@ -16,8 +16,8 @@ import {
   Button,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import FormProvider, {
+  RHFCustomFileUploadBox,
   RHFSelect,
   RHFTextField,
   RHFUpload,
@@ -645,7 +645,7 @@ export default function PreliminaryBondRequirements({
               </Grid>
               <Grid item xs={12} md={12}>
                 <Typography sx={{ pb: '20px' }}>Asset Cover Certificate</Typography>
-                <RHFFileUploadBox
+                {/* <RHFFileUploadBox
                   name="creditRatingLetter"
                   label="Upload Credit Rating Letter"
                   icon="mdi:file-document-outline"
@@ -659,10 +659,19 @@ export default function PreliminaryBondRequirements({
                   onDelete={() =>
                     handleRemoveCollateralFile('creditRatingLetter', collateralMethods.setValue)
                   }
+                /> */}
+                <RHFCustomFileUploadBox
+                  name="creditRatingLetter"
+                  label="Upload Credit Rating Letter"
+                  icon="mdi:file-document-outline"
+                  accept={{
+                    'application/pdf': ['.pdf'],
+                    'image/png': ['.png'],
+                    'image/jpeg': ['.jpg', '.jpeg'],
+                  }}
                 />
-                <YupErrorMessage name="creditRatingLetter" />
                 <Typography sx={{ py: '20px' }}>Valuation Report</Typography>
-                <RHFFileUploadBox
+                {/* <RHFFileUploadBox
                   name="valuationReport"
                   label="Upload Valuation Report"
                   icon="mdi:file-document-outline"
@@ -672,8 +681,17 @@ export default function PreliminaryBondRequirements({
                   onDelete={() =>
                     handleRemoveCollateralFile('valuationReport', collateralMethods.setValue)
                   }
+                /> */}
+                <RHFCustomFileUploadBox
+                  name="valuationReport"
+                  label="Upload Valuation Report"
+                  icon="mdi:file-document-outline"
+                  accept={{
+                    'application/pdf': ['.pdf'],
+                    'image/png': ['.png'],
+                    'image/jpeg': ['.jpg', '.jpeg'],
+                  }}
                 />
-                <YupErrorMessage name="valuationReport" />
               </Grid>
             </Grid>
             <Box

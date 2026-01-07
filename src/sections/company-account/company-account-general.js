@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import * as Yup from 'yup';
 import { useMemo, useEffect, useState, useCallback } from 'react';
 import { useSnackbar } from 'src/components/snackbar';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useDropzone } from 'react-dropzone';
 
@@ -25,6 +25,7 @@ import FormProvider, {
   RHFSelect,
   RHFUploadAvatar,
   RHFAutocomplete,
+  RHFCustomFileUploadBox,
 } from 'src/components/hook-form';
 import YupErrorMessage from 'src/components/error-field/yup-error-messages';
 import { countries } from 'src/assets/data';
@@ -32,7 +33,6 @@ import axiosInstance from 'src/utils/axios';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router';
 import { fData } from 'src/utils/format-number';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 
 // developer-provided uploaded file path (used as initial avatarUrl)
 const UPLOADED_DEV_FILE = '/mnt/data/Untitled document.docx';
@@ -47,6 +47,7 @@ export default function CompanyAccountGeneral() {
   const [panFileToken, setPanFileToken] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [userCompanyId, setUserCompanyId] = useState(null);
+  const [panExtractionStatus, setPanExtractionStatus] = useState('idle'); // 'idle' | 'success' | 'failed'
 
   // ------------------------------ validation --------------------------------
   const NewUserSchema = Yup.object().shape({
@@ -64,9 +65,15 @@ export default function CompanyAccountGeneral() {
       then: (schema) => schema.required('Pan File is required'),
       otherwise: (schema) => schema.nullable(),
     }),
-    panNumber: Yup.string().required('Pan Number is required'),
+    panNumber: Yup.string()
+      .transform((value) => value?.toUpperCase())
+      .matches(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format')
+      .required('PAN Number is required'),
+    panHoldersName: Yup.string()
+      .transform((value) => value?.toUpperCase())
+      .required("PAN Holder's Name is required")
+      .matches(/^[A-Za-z\s]+$/, 'Only alphabets allowed'),
     dateOfBirth: Yup.date().nullable().required('Date of Birth is required'),
-    panHoldersName: Yup.string().required('Pan Holders Name is required'),
     sector: Yup.string().required('Sector is required'),
     avatarUrl: Yup.string().nullable(),
   });
@@ -110,109 +117,10 @@ export default function CompanyAccountGeneral() {
     formState: { isSubmitting },
   } = methods;
 
-  // --------------------------- fetch company info --------------------------
-  useEffect(() => {
-    const fetchCompanyInfo = async () => {
-      try {
-        const response = await axiosInstance.get(`/api/kyc/issuer_kyc/company-info/profile/`);
-        const companyData = response?.data?.data;
-        if (companyData) {
-          reset(
-            {
-              cin: companyData.corporate_identification_number || '',
-              companyName: companyData.company_name || '',
-              gstin: companyData.gstin || '',
-              dateOfIncorporation: companyData.date_of_incorporation
-                ? dayjs(companyData.date_of_incorporation, 'YYYY-MM-DD').toDate()
-                : null,
-              msmeUdyamRegistrationNo: companyData.msme_udyam_registration_no || '',
-              city: companyData.city_of_incorporation || '',
-              state: companyData.state_of_incorporation || '',
-              country: companyData.country_of_incorporation || 'India',
-              entityType: (companyData.entity_type || '').toLowerCase(),
-              sector: companyData.sector || '',
-              panNumber: companyData.company_pan_number || '',
-              dateOfBirth: companyData.date_of_birth
-                ? dayjs(companyData.date_of_birth, 'YYYY-MM-DD').toDate()
-                : null,
-              panHoldersName: companyData.pan_holder_name || '',
-              avatarUrl: companyData.avatar?.fileUrl || UPLOADED_DEV_FILE,
-            },
-            { keepDefaultValues: false }
-          );
-
-          setHasExistingData(true);
-          if (companyData.company_id) setUserCompanyId(companyData.company_id);
-        }
-      } catch (error) {
-        // silent fail - form stays empty (dev file used as avatar default)
-        console.error('fetchCompanyInfo error', error);
-      }
-    };
-
-    fetchCompanyInfo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // --------------------------- PAN extraction ------------------------------
-  const handlePanUpload = async (file) => {
-    try {
-      const formData = new FormData();
-      formData.append('pan_card_file', file);
-      const response = await axiosInstance.post('/api/kyc/issuer_kyc/pan-extraction/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      if (response.data.success) {
-        const { pan_number, pan_holder_name, date_of_birth, file_token } = response.data.data;
-        setValue('panNumber', pan_number || '');
-        setValue('panHoldersName', pan_holder_name || '');
-        if (date_of_birth) setValue('dateOfBirth', new Date(date_of_birth));
-        setPanFileToken(file_token || '');
-        enqueueSnackbar('PAN details extracted successfully', { variant: 'success' });
-      } else {
-        enqueueSnackbar(response.data.message || 'Failed to extract PAN details', {
-          variant: 'error',
-        });
-      }
-    } catch (error) {
-      console.error('Error uploading PAN:', error);
-      enqueueSnackbar('Error uploading PAN. Please try again.', { variant: 'error' });
-    }
-  };
-
-  // --------------------------- Avatar upload (/files) ----------------------
-  const handleAvatarDrop = useCallback(
-    async (acceptedFiles) => {
-      const file = acceptedFiles[0];
-      if (!file) return;
-
-      try {
-        setAvatarUploading(true);
-        const fd = new FormData();
-        fd.append('file', file);
-
-        // Upload to your files endpoint
-        const res = await axiosInstance.post('/files', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        const uploaded = res?.data?.files?.[0];
-        if (uploaded?.fileUrl) {
-          setValue('avatarUrl', uploaded.fileUrl, { shouldValidate: true });
-          enqueueSnackbar('Avatar uploaded', { variant: 'success' });
-        } else {
-          enqueueSnackbar('Failed to upload avatar', { variant: 'error' });
-        }
-      } catch (err) {
-        console.error('avatar upload error', err);
-        enqueueSnackbar('Avatar upload failed', { variant: 'error' });
-      } finally {
-        setAvatarUploading(false);
-      }
-    },
-    [setValue, enqueueSnackbar]
-  );
+  const panFile = useWatch({
+    control: methods.control,
+    name: 'panFile',
+  });
 
   // optional small dropzone wrapper for RHFUploadAvatar if you want to use useDropzone directly
   const handleDrop = useCallback(
@@ -312,6 +220,103 @@ export default function CompanyAccountGeneral() {
     }
   });
 
+  useEffect(() => {
+    const fetchCompanyInfo = async () => {
+      try {
+        const response = await axiosInstance.get(`/api/kyc/issuer_kyc/company-info/profile/`);
+        const companyData = response?.data?.data;
+        if (companyData) {
+          reset(
+            {
+              cin: companyData.corporate_identification_number || '',
+              companyName: companyData.company_name || '',
+              gstin: companyData.gstin || '',
+              dateOfIncorporation: companyData.date_of_incorporation
+                ? dayjs(companyData.date_of_incorporation, 'YYYY-MM-DD').toDate()
+                : null,
+              msmeUdyamRegistrationNo: companyData.msme_udyam_registration_no || '',
+              city: companyData.city_of_incorporation || '',
+              state: companyData.state_of_incorporation || '',
+              country: companyData.country_of_incorporation || 'India',
+              entityType: (companyData.entity_type || '').toLowerCase(),
+              sector: companyData.sector || '',
+              panNumber: companyData.company_pan_number || '',
+              dateOfBirth: companyData.date_of_birth
+                ? dayjs(companyData.date_of_birth, 'YYYY-MM-DD').toDate()
+                : null,
+              panHoldersName: companyData.pan_holder_name || '',
+              avatarUrl: companyData.avatar?.fileUrl || UPLOADED_DEV_FILE,
+            },
+            { keepDefaultValues: false }
+          );
+
+          setHasExistingData(true);
+          if (companyData.company_id) setUserCompanyId(companyData.company_id);
+        }
+      } catch (error) {
+        // silent fail - form stays empty (dev file used as avatar default)
+        console.error('fetchCompanyInfo error', error);
+      }
+    };
+
+    fetchCompanyInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!panFile?.id) return;
+
+    const extractPanDetails = async () => {
+      try {
+        setPanExtractionStatus('loading');
+
+        const response = await axiosInstance.post('/extract/pan-info', {
+          fileId: panFile.id,
+        });
+
+        const data = response?.data?.data || {};
+
+        const panNumber = data?.extractedPanNumber;
+        const panName = data?.extractedPanHolderName;
+
+        if (!panNumber && !panName) {
+          setPanExtractionStatus('failed');
+          enqueueSnackbar("Couldn't extract PAN details. Please fill manually.", {
+            variant: 'error',
+          });
+          return;
+        }
+
+        if (panName) {
+          setValue('panHoldersName', panName, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+
+        if (panNumber) {
+          setValue('panNumber', panNumber, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+
+        setPanExtractionStatus('success');
+        enqueueSnackbar('PAN details extracted successfully', {
+          variant: 'success',
+        });
+      } catch (error) {
+        console.error(error);
+        setPanExtractionStatus('failed');
+        enqueueSnackbar('Unable to extract PAN details. Please fill manually.', {
+          variant: 'error',
+        });
+      }
+    };
+
+    extractPanDetails();
+  }, [panFile?.id]);
+
   // --------------------------- render -------------------------------------
   return (
     <Container>
@@ -333,7 +338,7 @@ export default function CompanyAccountGeneral() {
                     mx: 'auto',
                     display: 'block',
                     textAlign: 'center',
-                    fontWeight:600,
+                    fontWeight: 600,
                   }}
                 >
                   Company Logo
@@ -586,20 +591,16 @@ export default function CompanyAccountGeneral() {
                 </Grid>
               </Grid>
 
-              <RHFFileUploadBox
+              <RHFCustomFileUploadBox
                 name="panFile"
-                label="Upload PAN Card"
-                acceptedTypes="pdf,jpeg,jpg"
-                maxSizeMB={10}
-                onDrop={async (acceptedFiles) => {
-                  const file = acceptedFiles[0];
-                  if (file) {
-                    setValue('panFile', file, { shouldValidate: true });
-                    await handlePanUpload(file);
-                  }
+                label="Upload PAN Card *"
+                icon="mdi:file-document-outline"
+                accept={{
+                  'image/png': ['.png'],
+                  'image/jpeg': ['.jpg', '.jpeg'],
+                  'application/pdf': ['.pdf'],
                 }}
               />
-              <YupErrorMessage name="panFile" />
             </Grid>
 
             <Grid item xs={12} md={6}>
@@ -612,7 +613,11 @@ export default function CompanyAccountGeneral() {
                 </Grid>
               </Grid>
 
-              <RHFTextField name="panNumber" placeholder="Your PAN Number" />
+              <RHFTextField
+                name="panNumber"
+                placeholder="Your PAN Number"
+                inputProps={{ style: { textTransform: 'uppercase' } }}
+              />
             </Grid>
 
             {/* -------------------- DATE OF BIRTH -------------------- */}
@@ -656,7 +661,11 @@ export default function CompanyAccountGeneral() {
                 </Grid>
               </Grid>
 
-              <RHFTextField name="panHoldersName" placeholder="Enter Name as per PAN" />
+              <RHFTextField
+                name="panHoldersName"
+                placeholder="Enter Name as per PAN"
+                inputProps={{ style: { textTransform: 'uppercase' } }}
+              />
             </Grid>
           </Grid>
 

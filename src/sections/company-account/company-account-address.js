@@ -13,8 +13,11 @@ import {
   FormControlLabel,
 } from '@mui/material';
 
-import FormProvider, { RHFTextField, RHFSelect } from 'src/components/hook-form';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
+import FormProvider, {
+  RHFTextField,
+  RHFSelect,
+  RHFCustomFileUploadBox,
+} from 'src/components/hook-form';
 
 import { useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -39,9 +42,13 @@ export default function AddressNewForm({ onClose }) {
     registeredCountry: Yup.string().required('Required'),
     registeredCity: Yup.string().required('Required'),
     registeredState: Yup.string().required('Required'),
-    registeredPincode: Yup.string().required('Required').matches(/^[0-9]+$/, 'Invalid'),
+    registeredPincode: Yup.string()
+      .required('Required')
+      .matches(/^[0-9]+$/, 'Invalid'),
     registeredEmail: Yup.string().email('Invalid').required('Required'),
-    registeredPhone: Yup.string().required('Required').matches(/^[0-9]{10}$/, 'Must be 10 digits'),
+    registeredPhone: Yup.string()
+      .required('Required')
+      .matches(/^[0-9]{10}$/, 'Must be 10 digits'),
 
     sameAsRegistered: Yup.boolean(),
 
@@ -161,10 +168,7 @@ export default function AddressNewForm({ onClose }) {
         setValue('registeredState', reg.state_ut || '');
         setValue('registeredPincode', reg.pin_code || '');
         setValue('registeredEmail', reg.contact_email || '');
-        setValue(
-          'registeredPhone',
-          (reg.contact_phone || '').replace(/\D/g, '').slice(-10)
-        );
+        setValue('registeredPhone', (reg.contact_phone || '').replace(/\D/g, '').slice(-10));
 
         // Correspondence (kept separate!)
         setValue(
@@ -207,10 +211,7 @@ export default function AddressNewForm({ onClose }) {
         const user = res?.data?.data || {};
 
         setValue('registeredEmail', user.email || '');
-        setValue(
-          'registeredPhone',
-          (user.mobile_number || '').replace(/\D/g, '').slice(-10)
-        );
+        setValue('registeredPhone', (user.mobile_number || '').replace(/\D/g, '').slice(-10));
       } catch (err) {
         console.log(err);
       }
@@ -234,9 +235,7 @@ export default function AddressNewForm({ onClose }) {
     add('contact_email', form.registeredEmail);
     add(
       'contact_phone',
-      form.registeredPhone.startsWith('+')
-        ? form.registeredPhone
-        : `+91${form.registeredPhone}`
+      form.registeredPhone.startsWith('+') ? form.registeredPhone : `+91${form.registeredPhone}`
     );
 
     add(
@@ -263,9 +262,7 @@ export default function AddressNewForm({ onClose }) {
     );
     add(
       'correspondence_phone',
-      form.sameAsRegistered
-        ? `+91${form.registeredPhone}`
-        : `+91${form.correspondencePhone}`
+      form.sameAsRegistered ? `+91${form.registeredPhone}` : `+91${form.correspondencePhone}`
     );
 
     try {
@@ -308,15 +305,20 @@ export default function AddressNewForm({ onClose }) {
               </RHFSelect>
             </Box>
 
-            <RHFFileUploadBox
+            <RHFCustomFileUploadBox
               name="addressProof"
-              // label="Upload Address Proof"
               label={`Upload ${
-              (documentType === 'electricityBill' && 'Electricity Bill') ||
-              (documentType === 'leaseAgreement' && 'Lease Agreement') 
-            }`}
-              acceptedTypes="pdf,jpg,jpeg,png"
-              maxSizeMB={10}
+                (documentType === 'electricityBill' && 'Electricity Bill') ||
+                (documentType === 'leaseAgreement' && 'Lease Agreement')
+              }`}
+              icon="mdi:file-document-outline"
+              accept={{
+                'application/pdf': ['.pdf'],
+                'application/msword': ['.doc'],
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
+                  '.docx',
+                ],
+              }}
             />
           </Stack>
 

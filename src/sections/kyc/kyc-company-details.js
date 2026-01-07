@@ -11,7 +11,6 @@ import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
 import FormProvider, { RHFCustomFileUploadBox } from 'src/components/hook-form';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import { RHFSelect } from 'src/components/hook-form/rhf-select';
 import KYCTitle from './kyc-title';
 import KYCFooter from './kyc-footer';

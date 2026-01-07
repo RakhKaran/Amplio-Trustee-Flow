@@ -15,7 +15,11 @@ import DialogContent from '@mui/material/DialogContent';
 // components
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
-import FormProvider, { RHFSelect, RHFTextField } from 'src/components/hook-form';
+import FormProvider, {
+  RHFCustomFileUploadBox,
+  RHFSelect,
+  RHFTextField,
+} from 'src/components/hook-form';
 import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import axios from 'axios';
 import { useAuthContext } from 'src/auth/hooks';
@@ -76,8 +80,14 @@ export default function SignatoriesNewEditForm({
     customDesignation: Yup.string().when('role', (role, schema) =>
       role === 'OTHER' ? schema.required('Please enter designation') : schema.notRequired()
     ),
-    submittedPanFullName: Yup.string().required('PAN Holder Name is required'),
-    submittedPanNumber: Yup.string().required('PAN Number is required'),
+    submittedPanFullName: Yup.string()
+      .transform((value) => value?.toUpperCase())
+      .required("PAN Holder's Name is required")
+      .matches(/^[A-Za-z\s]+$/, 'Only alphabets allowed'),
+    submittedPanNumber: Yup.string()
+      .transform((value) => value?.toUpperCase())
+      .matches(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format')
+      .required('PAN Number is required'),
     submittedDateOfBirth: Yup.string().required('DOB is required'),
     panCard: Yup.mixed().test('fileRequired', 'PAN card is required', function (value) {
       if (isEditMode) return true;
@@ -404,23 +414,16 @@ export default function SignatoriesNewEditForm({
                 )}
               </Box>
             </Box>
-            <RHFFileUploadBox
-              name="panCard"
-              label="Upload PAN*"
-              accept="application/pdf,image/*"
-              fileType="pan"
-              existingFile={isEditMode ? currentSignatories?.panCardFile?.fileOriginalName : null}
-              disabled={isViewMode}
-              required={!isEditMode}
-              error={!!errors.panCard}
-              onDrop={async (files) => {
-                const file = files[0];
-                if (!file) return;
-                methods.setValue('panCard', file, { shouldValidate: true });
-                await handlePanUpload(file);
+            <RHFCustomFileUploadBox
+              name="panFile"
+              label="Upload PAN Card *"
+              icon="mdi:file-document-outline"
+              accept={{
+                'image/png': ['.png'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'application/pdf': ['.pdf'],
               }}
             />
-            {getErrorMessage('panCard')}
           </Grid>
 
           <Grid item xs={12} sm={6}>
@@ -429,6 +432,7 @@ export default function SignatoriesNewEditForm({
               label="PAN Holder Full Name*"
               disabled={!isPanUploaded || isViewMode}
               InputLabelProps={{ shrink: true }}
+              inputProps={{ style: { textTransform: 'uppercase' } }}
             />
           </Grid>
 
@@ -437,7 +441,7 @@ export default function SignatoriesNewEditForm({
               name="submittedPanNumber"
               label="PAN Number*"
               disabled={!isPanUploaded || isViewMode}
-              InputLabelProps={{ shrink: true }}
+              inputProps={{ style: { textTransform: 'uppercase' } }}
             />
           </Grid>
 
@@ -499,15 +503,16 @@ export default function SignatoriesNewEditForm({
                 )}
               </Box>
             </Box>
-            <RHFFileUploadBox
+            <RHFCustomFileUploadBox
               name="boardResolution"
               label="Board Resolution*"
-              accept="application/pdf,image/*"
-              fileType="boardResolution"
-              required={!isEditMode}
-              error={!!errors.boardResolution}
+              icon="mdi:file-document-outline"
+              accept={{
+                'image/png': ['.png'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'application/pdf': ['.pdf'],
+              }}
             />
-            {getErrorMessage('boardResolution')}
           </Grid>
         </Grid>
 

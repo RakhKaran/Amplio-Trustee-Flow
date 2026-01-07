@@ -25,9 +25,12 @@ import {
   TableBody,
 } from '@mui/material';
 import { useSnackbar } from 'src/components/snackbar';
-import FormProvider, { RHFSelect, RHFTextField } from 'src/components/hook-form';
+import FormProvider, {
+  RHFCustomFileUploadBox,
+  RHFSelect,
+  RHFTextField,
+} from 'src/components/hook-form';
 import axiosInstance from 'src/utils/axios';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import YupErrorMessage from 'src/components/error-field/yup-error-messages';
 import { DatePicker } from '@mui/x-date-pickers';
 import { Icon } from '@iconify/react';
@@ -494,13 +497,16 @@ export default function FundPositionForm({ currentFund, setActiveStep, onSave })
           />
 
           {/* 5. Credit Rating Letter Upload */}
-          <RHFFileUploadBox
+          <RHFCustomFileUploadBox
             name="creditRatingLetter"
             label="Upload Credit Rating Letter"
             icon="mdi:file-document-outline"
-            maxSizeMB={2}
+            accept={{
+              'application/pdf': ['.pdf'],
+              'image/png': ['.png'],
+              'image/jpeg': ['.jpg', '.jpeg'],
+            }}
           />
-          <YupErrorMessage name="creditRatingLetter" />
           <Box
             sx={{
               mt: 3,

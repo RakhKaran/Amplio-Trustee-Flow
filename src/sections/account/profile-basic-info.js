@@ -32,7 +32,6 @@ import axiosInstance from 'src/utils/axios';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router';
 import { fData } from 'src/utils/format-number';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import useGetProfileData from 'src/api/trusteeKyc';
 import { useGetTrusteeEntityTypes } from 'src/api/entityType';
 

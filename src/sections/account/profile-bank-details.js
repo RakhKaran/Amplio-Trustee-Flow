@@ -14,7 +14,6 @@ import { useForm, useWatch } from 'react-hook-form';
 // sections
 import * as Yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
-import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import { useRouter } from 'src/routes/hook';
 import { enqueueSnackbar } from 'notistack';
 import axiosInstance from 'src/utils/axios';
@@ -222,30 +221,17 @@ export default function KYCBankDetails() {
           </Box>
 
           {/* ---------------- ADDRESS PROOF UPLOAD ---------------- */}
-          {/* <RHFFileUploadBox
-           key={documentType}
-            name="addressProof"
-            label={`Upload ${documentType === 'cheque' ? 'Cheque' : 'Bank Statement'}`}
-            icon="mdi:file-document-outline"
-            color="#1e88e5"
-            acceptedTypes="pdf,xls,docx,jpeg"
-            maxSizeMB={10}
-            existing={existingProof}
-            onDrop={(files) => handleDrop(files)}
-            disabled={isApproved}
-          /> */}
           <RHFCustomFileUploadBox
             key={documentType}
             name="addressProof"
             label={`Upload ${documentType === 0 ? 'Cheque' : 'Bank Statement'}`}
             icon="mdi:file-document-outline"
-          // accept={{
-          //   'application/pdf': ['.pdf'],
-          //   'application/msword': ['.doc'],
-          //   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-          // }}
+          accept={{
+            'application/pdf': ['.pdf'],
+            'application/msword': ['.doc'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+          }}
           />
-          <YupErrorMessage name="addressProof" />
 
           {/* ---------------- BANK FIELDS ---------------- */}
           <Box sx={{ py: 4 }}>
