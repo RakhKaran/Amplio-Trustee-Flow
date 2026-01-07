@@ -11,7 +11,11 @@ import Paper from '@mui/material/Paper';
 // components
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
-import FormProvider, { RHFTextField, RHFSelect } from 'src/components/hook-form';
+import FormProvider, {
+  RHFTextField,
+  RHFSelect,
+  RHFCustomFileUploadBox,
+} from 'src/components/hook-form';
 import { useForm, useWatch } from 'react-hook-form';
 
 // sections
@@ -28,7 +32,12 @@ import { useEffect, useMemo, useState } from 'react';
 
 // ----------------------------------------------------------------------
 
-export default function KYCBankDetails({ percent, setActiveStepId }) {
+export default function KYCBankDetails({
+  percent,
+  setActiveStepId,
+  dataInitializedSteps,
+  setDataInitializedSteps,
+}) {
   const router = useRouter();
   const { Details: bankDetails, Loading: bankLoading } = useGetDetails();
 
@@ -103,24 +112,24 @@ export default function KYCBankDetails({ percent, setActiveStepId }) {
         enqueueSnackbar('User ID missing. Please restart KYC process.', { variant: 'error' });
         return;
       }
+      let bankAccountProofId = null;
 
-      const proofFile = data.addressProof;
-      let uploadedProofId = null;
+      const proof = data.addressProof;
 
-      if (proofFile) {
-        const fd = new FormData();
-        fd.append('file', proofFile);
-
-        const uploadRes = await axiosInstance.post('/files', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        uploadedProofId = uploadRes?.data?.files?.[0]?.id;
-
-        if (!uploadedProofId) {
-          enqueueSnackbar('Failed to upload address proof', { variant: 'error' });
-          return;
+      if (proof) {
+        // Case 1 & 3: direct id
+        if (proof.id) {
+          bankAccountProofId = proof.id;
         }
+        // Case 2: wrapped inside files array
+        else if (proof.files && proof.files.length > 0 && proof.files[0].id) {
+          bankAccountProofId = proof.files[0].id;
+        }
+      }
+
+      if (!bankAccountProofId) {
+        enqueueSnackbar('Address proof is required', { variant: 'error' });
+        return;
       }
 
       const payload = {
@@ -135,7 +144,7 @@ export default function KYCBankDetails({ percent, setActiveStepId }) {
           accountHolderName: data.accountHolderName,
           accountNumber: String(data.accountNumber),
           bankAccountProofType: data.documentType === 'cheque' ? 0 : 1,
-          bankAccountProofId: uploadedProofId,
+          bankAccountProofId,
         },
       };
 
@@ -184,13 +193,17 @@ export default function KYCBankDetails({ percent, setActiveStepId }) {
         accountNumber: bankDetails[0]?.accountNumber || '',
         ifscCode: bankDetails[0]?.ifscCode || '',
         accountType: bankDetails[0]?.accountType === 1 ? 'CURRENT' : 'SAVINGS',
-        addressProof:  bankDetails[0]?.bankAccountProof || null,
+        addressProof: bankDetails[0]?.bankAccountProof || null,
         accountHolderName: bankDetails[0]?.accountHolderName || '',
         bankAddress: bankDetails[0]?.bankAddress || '',
         bankShortCode: bankDetails[0]?.bankShortCode || '',
       });
+      if (!dataInitializedSteps.includes('kyc_bank_details')) {
+        setDataInitializedSteps();
+        setActiveStepId();
+      }
     }
-  }, [bankDetails, reset]);
+  }, [bankDetails, dataInitializedSteps, reset, setActiveStepId, setDataInitializedSteps]);
 
   return (
     <Container>
@@ -224,15 +237,16 @@ export default function KYCBankDetails({ percent, setActiveStepId }) {
           </Box>
 
           {/* ---------------- ADDRESS PROOF UPLOAD ---------------- */}
-          <RHFFileUploadBox
+          <RHFCustomFileUploadBox
             name="addressProof"
             label={`Upload ${documentType === 'cheque' ? 'Cheque' : 'Bank Statement'}`}
             icon="mdi:file-document-outline"
-            color="#1e88e5"
-            acceptedTypes="pdf,xls,docx,jpeg"
-            maxSizeMB={10}
             existing={existingProof}
-            onDrop={(files) => handleDrop(files)}
+            accept={{
+              'application/pdf': ['.pdf'],
+              'image/png': ['.png'],
+              'image/jpeg': ['.jpg', '.jpeg'],
+            }}
           />
 
           {/* ---------------- BANK FIELDS ---------------- */}

@@ -10,7 +10,7 @@ import Paper from '@mui/material/Paper';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
-import FormProvider from 'src/components/hook-form';
+import FormProvider, { RHFCustomFileUploadBox } from 'src/components/hook-form';
 import RHFFileUploadBox from 'src/components/custom-file-upload/file-upload';
 import { RHFSelect } from 'src/components/hook-form/rhf-select';
 import KYCTitle from './kyc-title';
@@ -28,7 +28,12 @@ import { useGetDocumentsByScreen } from 'src/api/documentsByScreen';
 
 // =====================================================================
 
-export default function KYCCompanyDetails({ percent, setActiveStepId }) {
+export default function KYCCompanyDetails({
+  percent,
+  setActiveStepId,
+  dataInitializedSteps,
+  setDataInitializedSteps,
+}) {
   const { kycSectionData, kycSectionLoading } = useGetKycSection(
     'trustee_documents',
     '/trustee-kyc/company-details'
@@ -40,6 +45,7 @@ export default function KYCCompanyDetails({ percent, setActiveStepId }) {
   const [docs, setDocs] = useState({});
 
   // ========================= FIELD MAP ================================
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const FIELD_MAP = {
     certificate_of_incorporation: 'certificateOfIncorporation',
     sebi_registration_certificate: 'sebiCertificate',
@@ -70,8 +76,7 @@ export default function KYCCompanyDetails({ percent, setActiveStepId }) {
       result[formField] = docs[docId] ?? null;
     });
 
-    result.moaAoaType =
-      docs[DOCUMENT_MAP.moa] ? 'moa' : docs[DOCUMENT_MAP.aoa] ? 'aoa' : 'moa';
+    result.moaAoaType = docs[DOCUMENT_MAP.moa] ? 'moa' : docs[DOCUMENT_MAP.aoa] ? 'aoa' : 'moa';
 
     return result;
   }, [docs, DOCUMENT_MAP]);
@@ -92,61 +97,61 @@ export default function KYCCompanyDetails({ percent, setActiveStepId }) {
     defaultValues,
   });
 
-  const { reset, setValue, watch, control, handleSubmit, formState: { errors, isSubmitting } } = methods;
+  const {
+    reset,
+    setValue,
+    watch,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = methods;
 
   const moaAoaType = useWatch({ control, name: 'moaAoaType' });
   const values = watch();
 
   // =====================================================================
-  // Load existing files from KYC section
   useEffect(() => {
-    if (!kycSectionData || kycSectionLoading) return;
+    if (
+      !kycSectionData ||
+      kycSectionLoading ||
+      !DOCUMENT_MAP ||
+      Object.keys(DOCUMENT_MAP).length === 0
+    )
+      return;
 
     const filled = {};
-
     (kycSectionData.data || []).forEach((item) => {
       const file = item?.documentFile?.documentFile ?? null;
       filled[item.documentId] = file;
     });
 
     setDocs(filled);
-    setActiveStepId();
-  }, [kycSectionData, kycSectionLoading]);
+
+    // ✅ Reset form ONLY when initial data loads
+    const initialValues = {};
+    Object.keys(FIELD_MAP).forEach((backendKey) => {
+      const formField = FIELD_MAP[backendKey];
+      const docId = DOCUMENT_MAP[backendKey];
+      initialValues[formField] = filled[docId] ?? null;
+    });
+    initialValues.moaAoaType = filled[DOCUMENT_MAP.moa]
+      ? 'moa'
+      : filled[DOCUMENT_MAP.aoa]
+      ? 'aoa'
+      : 'moa';
+
+    reset(initialValues);
+    if (!dataInitializedSteps.includes('kyc_company_documents')) {
+      setDataInitializedSteps();
+      setActiveStepId();
+    }
+  }, [kycSectionData, kycSectionLoading, DOCUMENT_MAP, reset, setDataInitializedSteps, dataInitializedSteps, setActiveStepId, FIELD_MAP]);
+
 
   // Reset form on docs change
   useEffect(() => {
     reset(defaultValues);
   }, [defaultValues, reset]);
-
-  // =====================================================================
-  // Upload handler
-  const handleFileUpload = async (file, fieldName, backendKey) => {
-    try {
-      if (!file) return;
-
-      enqueueSnackbar('Uploading File...', { variant: 'info' });
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const uploadRes = await axiosInstance.post('/files', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      const uploaded = uploadRes?.data?.files?.[0];
-
-      setValue(fieldName, uploaded, { shouldValidate: true });
-
-      const docId = DOCUMENT_MAP[backendKey];
-      if (docId) {
-        setDocs((prev) => ({ ...prev, [docId]: uploaded }));
-      }
-
-      enqueueSnackbar('File uploaded successfully', { variant: 'success' });
-    } catch (err) {
-      enqueueSnackbar('File upload failed', { variant: 'error' });
-    }
-  };
 
   // =====================================================================
   // Percent calculation
@@ -210,28 +215,30 @@ export default function KYCCompanyDetails({ percent, setActiveStepId }) {
         <Paper sx={{ p: 3, mt: 3 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* ================= COI ================= */}
-            <RHFFileUploadBox
+            <RHFCustomFileUploadBox
               name="certificateOfIncorporation"
               label="Certificate of Incorporation*"
               existing={docs[DOCUMENT_MAP.certificate_of_incorporation]}
               icon="mdi:certificate-outline"
-              maxSizeMB={2}
-              onDrop={(files) =>
-                handleFileUpload(files[0], 'certificateOfIncorporation', 'certificate_of_incorporation')
-              }
+              accept={{
+                'application/pdf': ['.pdf'],
+                'image/png': ['.png'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+              }}
             />
             <YupErrorMessage name="certificateOfIncorporation" />
 
             {/* ================= SEBI ================= */}
-            <RHFFileUploadBox
+            <RHFCustomFileUploadBox
               name="sebiCertificate"
               label="SEBI Registration Certificate*"
               existing={docs[DOCUMENT_MAP.sebi_registration_certificate]}
               icon="mdi:briefcase-outline"
-              maxSizeMB={2}
-              onDrop={(files) =>
-                handleFileUpload(files[0], 'sebiCertificate', 'sebi_registration_certificate')
-              }
+              accept={{
+                'application/pdf': ['.pdf'],
+                'image/png': ['.png'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+              }}
             />
             <YupErrorMessage name="sebiCertificate" />
 
@@ -243,42 +250,45 @@ export default function KYCCompanyDetails({ percent, setActiveStepId }) {
 
             {/* ================= MOA ================= */}
             {moaAoaType === 'moa' && (
-              <RHFFileUploadBox
+              <RHFCustomFileUploadBox
                 name="moaDocument"
                 label="MoA - Memorandum of Association"
                 existing={docs[DOCUMENT_MAP.moa]}
                 icon="mdi:file-document-edit-outline"
-                maxSizeMB={2}
-                onDrop={(files) =>
-                  handleFileUpload(files[0], 'moaDocument', 'moa')
-                }
+                accept={{
+                  'application/pdf': ['.pdf'],
+                  'image/png': ['.png'],
+                  'image/jpeg': ['.jpg', '.jpeg'],
+                }}
               />
             )}
 
             {/* ================= AOA ================= */}
             {moaAoaType === 'aoa' && (
-              <RHFFileUploadBox
+              <RHFCustomFileUploadBox
                 name="aoaDocument"
                 label="AoA - Articles of Association"
                 existing={docs[DOCUMENT_MAP.aoa]}
                 icon="mdi:file-document-edit-outline"
-                maxSizeMB={2}
-                onDrop={(files) =>
-                  handleFileUpload(files[0], 'aoaDocument', 'aoa')
-                }
+                accept={{
+                  'application/pdf': ['.pdf'],
+                  'image/png': ['.png'],
+                  'image/jpeg': ['.jpg', '.jpeg'],
+                }}
               />
             )}
 
             {/* ================= GST ================= */}
-            <RHFFileUploadBox
+            <RHFCustomFileUploadBox
               name="gstCertificate"
               label="GST Certificate"
-              existing={docs[DOCUMENT_MAP.gst_certificate]}
               icon="mdi:earth"
-              maxSizeMB={2}
-              onDrop={(files) =>
-                handleFileUpload(files[0], 'gstCertificate', 'gst_certificate')
-              }
+              existing={docs[DOCUMENT_MAP.gst_certificate]}
+              accept={{
+                'application/pdf': ['.pdf'],
+                'image/png': ['.png'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+              }}
             />
           </Box>
         </Paper>
