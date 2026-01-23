@@ -44,7 +44,6 @@ export default function JwtRegisterTrusteeByEmailView() {
 
       router.push(paths.auth.kyc.trusteeKyc);
       return;
-
     } catch (err) {
       console.error('KYC Progress Fetch Error:', err);
       enqueueSnackbar('Unable to fetch KYC progress', { variant: 'error' });
@@ -124,8 +123,17 @@ export default function JwtRegisterTrusteeByEmailView() {
       setOtpStarted(false);
       setIsOtpSent(true);
       startTimer();
-    } catch (err) {
-      setErrorMsg(err?.response?.data?.message || 'Failed to send OTP');
+    } catch (error) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'OTP verification failed';
+      enqueueSnackbar(message, {
+        variant: 'error',
+      });
     }
   };
 
@@ -142,8 +150,17 @@ export default function JwtRegisterTrusteeByEmailView() {
       otpRefs.current[0]?.focus();
 
       startTimer();
-    } catch (err) {
-      setErrorMsg('Failed to resend OTP');
+    } catch (error) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'OTP verification failed';
+      enqueueSnackbar(message, {
+        variant: 'error',
+      });
     }
   };
 
@@ -170,8 +187,17 @@ export default function JwtRegisterTrusteeByEmailView() {
       enqueueSnackbar(res.data.message || 'Email Verified!', { variant: 'success' });
 
       await redirectBasedOnProgress(sessionId);
-    } catch (err) {
-      setErrorMsg(err?.response?.data?.message || 'Invalid OTP');
+    } catch (error) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'OTP verification failed';
+      enqueueSnackbar(message, {
+        variant: 'error',
+      });
     }
   });
 

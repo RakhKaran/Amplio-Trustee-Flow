@@ -226,8 +226,6 @@ export default function KYCBankDetails({
               name="documentType"
               SelectProps={{
                 displayEmpty: true,
-                renderValue: (value) =>
-                  value ? value : <Box sx={{ color: 'text.disabled' }}>Select Type</Box>,
               }}
             >
               <MenuItem value="cheque">Cheque</MenuItem>

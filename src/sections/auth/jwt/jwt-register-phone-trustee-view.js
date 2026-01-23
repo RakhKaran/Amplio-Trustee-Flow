@@ -97,8 +97,15 @@ export default function JwtRegisterTrusteeByMobileView() {
       setOtpStarted(false);
       setIsOtpSent(true);
       startTimer();
-    } catch (err) {
-      enqueueSnackbar(err?.response?.data?.message || 'Failed to send OTP', {
+    } catch (error) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'OTP verification failed';
+      enqueueSnackbar(message, {
         variant: 'error',
       });
     }
@@ -123,8 +130,17 @@ export default function JwtRegisterTrusteeByMobileView() {
 
       // restart timer
       startTimer();
-    } catch (err) {
-      enqueueSnackbar('Failed to resend OTP', { variant: 'error' });
+    } catch (error) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'OTP verification failed';
+      enqueueSnackbar(message, {
+        variant: 'error',
+      });
     }
   };
 
@@ -149,8 +165,15 @@ export default function JwtRegisterTrusteeByMobileView() {
 
       // go to email page
       router.push(paths.auth.jwt.registerEmail);
-    } catch (err) {
-      enqueueSnackbar(err?.response?.data?.message || 'Invalid OTP', {
+    } catch (error) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'OTP verification failed';
+      enqueueSnackbar(message, {
         variant: 'error',
       });
     }
